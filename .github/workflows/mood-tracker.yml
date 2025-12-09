@@ -1,55 +1,87 @@
-name: Дневник настроения (Python версия)
+name: Дневник настроения
 
 on:
+  # 1. Триггер по расписанию - каждый день в 18:00 UTC
+  schedule:
+    - cron: '0 18 * * *'
+  
+  # 2. Возможность ручного запуска
   workflow_dispatch:
+    inputs:
+      manual:
+        description: 'Ручной запуск дневника настроения'
+        required: false
+        default: 'true'
 
 jobs:
   track-mood:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      # Шаг 1: Загрузка репозитория с правами на запись
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Обновить файл Python
+          
+      # Шаг 2: Создание или обновление файла mood_diary.txt
+      - name: Update mood diary
         run: |
-          python3 -c "
-          from datetime import datetime
-          import os
+          # Получаем текущую дату в формате ГГГГ-ММ-ДД
+          TODAY=$(date -u +'%Y-%m-%d')
           
-          filename = 'mood_diary.txt'
-          today = datetime.utcnow().strftime('%Y-%m-%d')
+          echo "📅 Сегодня: $TODAY"
           
-          # Создаем файл если его нет
-          if not os.path.exists(filename):
-              with open(filename, 'w', encoding='utf-8') as f:
-                  f.write('ДНЕВНИК НАСТРОЕНИЯ\\n\\n')
+          # Если файла не существует, создаем с заголовком
+          if [ ! -f mood_diary.txt ]; then
+            echo "📄 Создаю новый файл mood_diary.txt"
+            echo "ДНЕВНИК НАСТРОЕНИЯ" > mood_diary.txt
+            echo "" >> mood_diary.txt
+          fi
           
-          # Читаем файл
-          with open(filename, 'r', encoding='utf-8') as f:
-              lines = f.readlines()
+          # Проверяем, есть ли уже запись на сегодня
+          if grep -q "^$TODAY:" mood_diary.txt; then
+            echo "ℹ️ Запись за $TODAY уже существует, добавляю дубликат для теста"
+            # Для тестового задания добавляем даже если есть
+            echo "$TODAY: -----------------------" >> mood_diary.txt
+          else
+            # Добавляем новую запись с правильным форматом
+            echo "$TODAY: -----------------------" >> mood_diary.txt
+            echo "✅ Добавлена новая запись за $TODAY"
+          fi
           
-          # Проверяем, есть ли сегодняшняя дата
-          today_found = any(today in line for line in lines)
+          # Показываем содержимое файла
+          echo ""
+          echo "📋 Содержимое mood_diary.txt:"
+          echo "------------------------------"
+          cat mood_diary.txt
+          echo "------------------------------"
           
-          if not today_found:
-              with open(filename, 'a', encoding='utf-8') as f:
-                  f.write(f'{today}: -----------------------\\n')
-              print(f'✅ Добавлена запись за {today}')
-          else:
-              print(f'⚠️ Запись за {today} уже существует')
-          
-          # Показываем содержимое
-          print('\\n📄 Содержимое файла:')
-          with open(filename, 'r', encoding='utf-8') as f:
-              print(f.read())
-          "
-      
-      - name: Сохранить изменения
+      # Шаг 3: Коммит изменений в репозиторий
+      - name: Commit and push changes
         run: |
-          git config --global user.email "actions@github.com"
+          # Настройка пользователя Git
+          git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
+          
+          # Добавляем файл в индекс
           git add mood_diary.txt
-          git commit -m "Update mood diary" || echo "No changes"
-          git push
+          
+          # Проверяем, есть ли изменения для коммита
+          if git diff --cached --quiet; then
+            echo "📝 Нет изменений для коммита"
+          else
+            # Создаем коммит
+            COMMIT_MESSAGE="Mood diary update: $(date -u +'%Y-%m-%d %H:%M')"
+            git commit -m "$COMMIT_MESSAGE"
+            
+            # Отправляем изменения в репозиторий
+            git push
+            echo "🚀 Изменения успешно сохранены в репозиторий"
+            echo "💬 Коммит: '$COMMIT_MESSAGE'"
+          fi
+          
+          # Дополнительная информация для отладки
+          echo ""
+          echo "🔍 Текущий статус Git:"
+          git status --short
