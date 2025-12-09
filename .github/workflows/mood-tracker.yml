@@ -1,10 +1,8 @@
 name: Дневник настроения
 
 on:
-  # Триггер по расписанию (каждый день в 18:00 UTC)
   schedule:
     - cron: '0 18 * * *'
-  # Триггер для ручного запуска из интерфейса GitHub
   workflow_dispatch:
 
 jobs:
@@ -12,38 +10,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Шаг 1: Загружаем код репозитория
+      # Шаг 1: Загружаем репозиторий с полными правами
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # Это важно, чтобы push сработал
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Важно: вытягиваем ВСЕ историю коммитов
+          fetch-depth: 0
 
-      # Шаг 2: Создаем или обновляем файл дневника
+      # Шаг 2: Создаем или обновляем файл
       - name: Update mood diary
         run: |
-          # Определяем сегодняшнюю дату в формате ГГГГ-ММ-ДД
+          # Создаем файл с заголовком, если его нет
+          if [ ! -f mood_diary.txt ]; then
+            echo "ДНЕВНИК НАСТРОЕНИЯ" > mood_diary.txt
+            echo "" >> mood_diary.txt
+          fi
+          
+          # Получаем текущую дату
           TODAY=$(date -u +'%Y-%m-%d')
-          # Создаем файл, если его нет, и добавляем строку с датой
-          echo "$TODAY:" >> mood_diary.txt
-          # Выводим содержимое файла в лог для проверки
-          echo "Содержимое файла:"
+          
+          # Проверяем, есть ли уже запись на сегодня
+          if ! grep -q "^$TODAY:" mood_diary.txt; then
+            # Добавляем новую запись
+            echo "$TODAY:" >> mood_diary.txt
+            echo "Добавлена запись за $TODAY"
+          else
+            echo "Запись за $TODAY уже существует"
+          fi
+          
+          # Показываем содержимое для отладки
+          echo "--- Содержимое файла ---"
           cat mood_diary.txt
+          echo "--- Конец файла ---"
 
-      # Шаг 3: Сохраняем (коммитим) изменения в репозиторий
-      - name: Commit and push changes
+      # Шаг 3: Коммитим и пушим изменения
+      - name: Commit and push
         run: |
-          # Настраиваем git (без этого коммит не получится)
+          # Настраиваем git
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
-
-          # Проверяем, есть ли изменения для коммита
-          if git diff --quiet; then
-            echo "Нет изменений для коммита."
-          else
-            # Добавляем, коммитим и пушим изменения
+          
+          # Проверяем статус git
+          echo "=== Статус git перед коммитом ==="
+          git status
+          
+          # Проверяем, есть ли изменения
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "Есть изменения для коммита"
             git add mood_diary.txt
             git commit -m "Mood diary update: $(date -u +'%Y-%m-%d')"
-            git push
-            echo "Изменения успешно запушены."
+            git push origin HEAD:${{ github.ref_name }}
+            echo "Изменения успешно запушены"
+          else
+            echo "Нет изменений для коммита"
           fi
