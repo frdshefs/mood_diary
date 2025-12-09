@@ -1,56 +1,12 @@
-name: Дневник настроения
-
-on:
-  workflow_dispatch:  # ТОЛЬКО ручной запуск для теста
-
-jobs:
-  track-mood:
-    runs-on: ubuntu-latest
+- name: Запись в файл
+  run: |
+    # Принудительно создаем файл если его нет
+    if [ ! -f mood_diary.txt ]; then
+      echo "Создаю файл..."
+      echo "ДНЕВНИК НАСТРОЕНИЯ" > mood_diary.txt
+      echo "" >> mood_diary.txt
+    fi
     
-    steps:
-      # Шаг 1: Загружаем репозиторий
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      # Шаг 2: Показать что сейчас есть
-      - name: Проверка перед изменениями
-        run: |
-          echo "=== ПРОВЕРКА ПЕРЕД ИЗМЕНЕНИЯМИ ==="
-          echo "Текущая папка: $(pwd)"
-          echo "Список файлов:"
-          ls -la
-          echo ""
-          echo "Содержимое mood_diary.txt (если есть):"
-          if [ -f mood_diary.txt ]; then
-            cat mood_diary.txt
-          else
-            echo "ФАЙЛА НЕТ!"
-          fi
-      
-      # Шаг 3: Простая запись в файл
-      - name: Запись в файл
-        run: |
-          echo "=== ЗАПИСЬ В ФАЙЛ ==="
-          DATE=$(date +'%Y-%m-%d')
-          echo "$DATE: -----------------------" >> mood_diary.txt
-          echo "Добавлена строка: $DATE: -----------------------"
-      
-      # Шаг 4: Показать результат
-      - name: Проверка после изменений
-        run: |
-          echo "=== РЕЗУЛЬТАТ ==="
-          echo "Содержимое mood_diary.txt:"
-          cat mood_diary.txt
-          echo ""
-          echo "Размер файла: $(wc -l < mood_diary.txt) строк"
-      
-      # Шаг 5: Сохранить изменения
-      - name: Сохранить в Git
-        run: |
-          echo "=== СОХРАНЕНИЕ В GIT ==="
-          git config --global user.email "test@github.com"
-          git config --global user.name "GitHub Actions"
-          
-          git add mood_diary.txt
-          git commit -m "Добавлена запись: $(date +'%Y-%m-%d')"
-          git push
+    DATE=$(date +'%Y-%m-%d')
+    echo "$DATE: -----------------------" >> mood_diary.txt
+    echo "Добавлена строка: $DATE"
