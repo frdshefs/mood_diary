@@ -1,12 +1,78 @@
-- name: Запись в файл
-  run: |
-    # Принудительно создаем файл если его нет
-    if [ ! -f mood_diary.txt ]; then
-      echo "Создаю файл..."
-      echo "ДНЕВНИК НАСТРОЕНИЯ" > mood_diary.txt
-      echo "" >> mood_diary.txt
-    fi
+name: Дневник настроения
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+jobs:
+  track-mood:
+    runs-on: ubuntu-latest
     
-    DATE=$(date +'%Y-%m-%d')
-    echo "$DATE: -----------------------" >> mood_diary.txt
-    echo "Добавлена строка: $DATE"
+    steps:
+      # Шаг 1: Загружаем репозиторий
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Шаг 2: Показать начальное состояние
+      - name: Проверка начального состояния
+        run: |
+          echo "=== НАЧАЛЬНАЯ ПРОВЕРКА ==="
+          echo "Текущая папка: $(pwd)"
+          echo "Список файлов:"
+          ls -la
+      
+      # Шаг 3: Создать или обновить файл
+      - name: Обновить дневник настроения
+        run: |
+          echo "=== ОБНОВЛЕНИЕ ФАЙЛА ==="
+          
+          # Если файла нет - создаем с заголовком
+          if [ ! -f mood_diary.txt ]; then
+            echo "Файл не найден, создаю..."
+            echo "ДНЕВНИК НАСТРОЕНИЯ" > mood_diary.txt
+            echo "" >> mood_diary.txt
+          fi
+          
+          # Получаем текущую дату
+          DATE=$(date -u +'%Y-%m-%d')
+          echo "Сегодня: $DATE"
+          
+          # Проверяем, есть ли уже запись на сегодня
+          if grep -q "^$DATE:" mood_diary.txt; then
+            echo "Запись за $DATE уже существует"
+          else
+            # Добавляем новую запись
+            echo "$DATE: -----------------------" >> mood_diary.txt
+            echo "Добавлена новая запись за $DATE"
+          fi
+          
+          # Показываем содержимое файла
+          echo "=== СОДЕРЖИМОЕ ФАЙЛА ==="
+          cat mood_diary.txt
+          echo "=== КОНЕЦ ФАЙЛА ==="
+      
+      # Шаг 4: Сохранить изменения
+      - name: Сохранить в Git
+        run: |
+          echo "=== СОХРАНЕНИЕ В GIT ==="
+          
+          # Настраиваем Git
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          
+          # Проверяем изменения
+          git status
+          
+          # Пытаемся добавить и закоммитить
+          git add mood_diary.txt
+          
+          if git diff --cached --quiet; then
+            echo "Нет изменений для коммита"
+          else
+            git commit -m "Добавлена запись за $(date -u +'%Y-%m-%d')"
+            git push
+            echo "Изменения успешно сохранены"
+          fi
