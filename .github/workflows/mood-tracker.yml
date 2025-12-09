@@ -1,0 +1,37 @@
+name: Дневник настроения
+
+on:
+  schedule:
+
+    - cron: '0 18 * * *'
+
+  workflow_dispatch:
+
+jobs:
+  track-mood:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: 📥 Загружаем код
+        uses: actions/checkout@v4
+
+
+      - name: 📝 Добавляем запись
+        run: |
+          # Получаем сегодняшнюю дату
+          TODAY=$(date +"%Y-%m-%d")
+          
+      
+          if [ ! -f "mood_diary.txt" ]; then
+            echo "📔 ДНЕВНИК НАСТРОЕНИЯ" > mood_diary.txt
+            echo "==================" >> mood_diary.txt
+            echo "" >> mood_diary.txt
+          fi
+          
+          echo "$TODAY:" >> mood_diary.txt
+          
+          
+          echo "✅ Добавлена запись за $TODAY"
+          echo "📄 Содержимое файла:"
+          cat mood_diary.txt
